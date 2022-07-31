@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+// import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import './common/edit_page.dart';
 
 // リスト一覧画面用Widget
 class MemoPage extends StatefulWidget {
+  const MemoPage({Key? key}) : super(key: key);
   @override
   _MemoPageState createState() => _MemoPageState();
 }
 
 class _MemoPageState extends State<MemoPage> {
 
-  final _controller = TextEditingController();
   List<String> _MemoList = [];
+  // メモ追加画面
+  final _ctr = TextEditingController();
   String _memo = '';
+  // メモ編集画面
+  final _editCtl = TextEditingController();
+  String _editMemo = '';
+  bool isMod = false;
 
   @override
+  // 初期化処理
   void initState() {
     super.initState();
     init();
   }
-
   // 画面起動時に読み込むメソッド
   void init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -31,263 +38,200 @@ class _MemoPageState extends State<MemoPage> {
     }
   }
 
+  // リストの更新を保存
   Future _updateItem(List<String> memos) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // ④保存
+    // 保存
     await prefs.setStringList('listData', memos);
   }
 
+  /// メモ一覧ページ  ///
+  @override
+  Widget build(BuildContext context) {
+    // Todoリストのデータ
+    return Scaffold(
+      // AppBarを表示し、タイトルも設定
+      appBar: AppBar(
+        title: const Text('メモ一覧'),
+        centerTitle: true,
+        elevation: 0.0,
+        actions: [
+          // ボタンを追加する
+          IconButton(
+            onPressed: () async {
+
+              setState(() {
+                // _MemoList.reversed.toList();
+                _MemoList.sort((a, b) => -a.compareTo(b));
+              });
+
+              // final docs = _displayTextEditDialog;
+
+              // シートを表示する
+              // showDialog(
+              //   context: context,
+              //   builder: (BuildContext context) {
+              //     return EditPage();
+              //   },
+              // );
+            },
+            icon: const Icon(Icons.swap_vert_rounded),
+          ),
+        ],
+      ),
+      // データを元にListViewを作成
+      body: ListView.builder(
+        // reverse: true,
+        itemCount: _MemoList.length,
+        itemBuilder: (context, index) {
+
+          return GestureDetector(
+            onTap: () {
+              // タップするとメモ編集画面へ
+              _editCtl.text = _MemoList[index];
+
+              final docs = _displayTextEditDialog(context);
+              docs.then((value) {
+                if (isMod) {
+                  _MemoList[index] = _editCtl.text;
+                }
+                setState(() {
+                  _updateItem(_MemoList); // リストを更新
+                  _editCtl.clear(); //
+                  _editMemo = ''; //
+                  isMod = false;
+                });
+              });
+            },
+            onLongPress: () {
+
+            },
+            child: Card(
+              child: ListTile(
+                title: Text(_MemoList[index]),
+                trailing: GestureDetector(
+                  child: const Icon(Icons.delete),
+                  onTap: () {
+                    // タップすると削除
+                    setState(() {
+                      _MemoList.remove(_MemoList[index]);
+                      _updateItem(_MemoList);
+                    });
+                  },
+
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // メモを追加後に画面を更新
+          final docs = _displayTextInputDialog(context);
+          docs.then((value) {
+            setState(() {});
+          });
+        },
+        tooltip: 'メモを追加',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  /// メモ追加画面 ///
   Future<void> _displayTextInputDialog(BuildContext context) async {
     return showDialog(
         context: context,
         builder: (context) {
           return StatefulBuilder(builder: (context, setState) {
             return AlertDialog(
-              title: Text('add list'),
+              title: const Text('メモを追加'),
               content: TextField(
                 //自動的にキーボードを開く
                 autofocus: true,
+                // 入力を感知
                 onChanged: (value) {
                   setState(() {
                     _memo = value;
                   });
                 },
-                controller: _controller,
-                decoration: InputDecoration(hintText: "What are you up to?"),
+                enabled: true,
+                minLines: 3, // 10行分かけるようにする
+                maxLines: null,
+                controller: _ctr,
+                decoration: const InputDecoration(hintText: "ここに記入してください"),
               ),
               actions: <Widget>[
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    primary: Colors.green,
-                    onPrimary: Colors.black,
+                    primary: Colors.blue,
+                    onPrimary: Colors.white,
                   ),
-                  child: Text('Add'),
+                  child: const Text('追加'),
+                  // 削除ボタン
                   onPressed: _memo.isEmpty
                       ? null
                       : () {
-                    setState(() {
-                      _MemoList.add(_memo);
-                      _updateItem(_MemoList);
-                      _controller.clear();
-                      Navigator.pop(context);
-                    });
-                  },
+                          setState(() {
+                            _MemoList.add(_memo);
+                            _updateItem(_MemoList);
+                            _ctr.clear();
+                            _memo = '';
+                            Navigator.pop(context);
+                          });
+                        },
                 ),
               ],
             );
           });
         });
   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: Colors.blue,
-//       appBar: AppBar(
-//         title: Text(
-//           'Memo',
-//           style: TextStyle(
-//             fontSize: 20.0,
-//             fontWeight: FontWeight.bold,
-//           ),
-//         ),
-//         centerTitle: true,
-//         elevation: 0.0,
-//       ),
-//       body: Container(
-//         height: MediaQuery.of(context).size.height,
-//         width: MediaQuery.of(context).size.width,
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.only(
-//             topLeft: Radius.circular(30.0),
-//             topRight: Radius.circular(30.0),
-//           ),
-//         ),
-//         child: ListView.builder(
-//
-//
-//           ///きっちりスクロールできるやつ/////
-//             physics: ClampingScrollPhysics(),
-//             itemCount: _MemoList.length,
-//             itemBuilder: (BuildContext context, int index) {
-//               return Padding(
-//                 padding: index == 0
-//                     ? EdgeInsets.only(top: 30)
-//                     : EdgeInsets.only(top: 10),
-//                 child: Slidable(
-//                     actionPane: SlidableDrawerActionPane(),
-//                     //actionExtentRatio: 0.25,
-//                     secondaryActions: [
-//                       IconSlideAction(
-//                         caption: '削除',
-//                         color: Colors.red,
-//                         icon: Icons.delete_outline,
-//                         onTap: () {
-//                           setState(() {
-//                             _MemoList.remove(_MemoList[index]);
-//                             _updateItem(_MemoList);
-//                           });
-//                         },
-//                       ),
-//                     ],
-//                     child: Container(
-//                       width: MediaQuery.of(context).size.width,
-//                       margin: EdgeInsets.only(right: 20.0),
-//                       padding: EdgeInsets.symmetric(
-//                           horizontal: 20.0, vertical: 10.0),
-//                       decoration: BoxDecoration(
-//                         color: Colors.blue,
-//                         borderRadius: BorderRadius.only(
-//                           topRight: Radius.circular(20.0),
-//                           bottomRight: Radius.circular(20.0),
-//                         ),
-//                       ),
-//                       child: Text(
-//                         _MemoList[index],
-//                         style: TextStyle(
-//                           color: Colors.white,
-//                           fontSize: 20.0,
-//                           fontWeight: FontWeight.bold,
-//                         ),
-//                       ),
-//                     )),
-//               );
-//             }),
-//       ),
-//       floatingActionButton: FloatingActionButton(
-//         onPressed: () {
-//           _displayTextInputDialog(context);
-//         },
-//         tooltip: 'Increment',
-//         child: Icon(Icons.add),
-//       ), // This trailing comma makes auto-formatting nicer for build methods.
-//     );
-//   }
-// }
 
+  /// メモ編集画面 ///
+  Future<void> _displayTextEditDialog(BuildContext context) async {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(builder: (context, setState) {
+            return AlertDialog(
+                title: const Text('メモを編集'),
+                content: TextField(
+                  //自動的にキーボードを開く
+                  autofocus: true,
 
-  @override
-  Widget build(BuildContext context) {
-  // Todoリストのデータ
-    return Scaffold(
-      // AppBarを表示し、タイトルも設定
-      appBar: AppBar(
-        title: Text('メモ一覧'),
-      ),
-      // データを元にListViewを作成
-      body: ListView.builder(
-        itemCount: _MemoList.length,
-        itemBuilder: (context, index) {
-          return Card(
-            child: ListTile(
-              title: Text(_MemoList[index]),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // "push"で新規画面に遷移
-          // リスト追加画面から渡される値を受け取る
-          final newListText =  await showModalBottomSheet(
-              context: context,
-              builder: (BuildContext context) {
-              // 遷移先の画面としてリスト追加画面を指定
-              return MemoAddPage();
-              }
-          );
-          if (newListText != null) {
-            // キャンセルした場合は newListText が null となるので注意
-
-            setState(() {
-              // リスト追加
-              _MemoList.add(newListText);
-            });
-          }
-        },
-        child: Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-
-
-class MemoAddPage extends StatefulWidget {
-  @override
-  _MemoAddPageState createState() => _MemoAddPageState();
-}
-
-class _MemoAddPageState extends State<MemoAddPage> {
-
-  String _text = '';
-
-  // データを元に表示するWidget
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('メモを追加'),
-      ),
-      body: Container(
-        // 余白を付ける
-        padding: EdgeInsets.all(64),
-        child: ListView(
-          children: <Widget>[
-            // 入力されたテキストを表示
-            // Text(_text, style: TextStyle(color: Colors.blue)),
-            // const SizedBox(height: 8),
-            // テキスト入力
-            TextField(
-              enabled: true,
-              minLines: 3, // 10行分かけるようにする
-              maxLines: null,
-              textAlign: TextAlign.start,
-              decoration: const InputDecoration(
-                hintText: "ここに記入",
-                labelText: "メモの内容",
-              ),
-              // 入力されたテキストの値を受け取る（valueが入力されたテキスト）
-              onChanged: (String value) {
-                // データが変更したことを知らせる（画面を更新する）
-                setState(() {
-                  // データを変更
-                  _text = value;
-                });
-              },
-            ),
-            const SizedBox(height: 5),
-            Container(
-              // 横幅いっぱいに広げる
-              width: double.infinity,
-              // リスト追加ボタン
-              child: ElevatedButton(
-                onPressed: () async {
-                  // "pop"で前の画面に戻る
-                  // "pop"の引数から前の画面にデータを渡す
-                    Navigator.of(context).pop(_text);
-                },
-                child: Text('リスト追加', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              // 横幅いっぱいに広げる
-              width: double.infinity,
-              // キャンセルボタン
-              child: TextButton(
-                // ボタンをクリックした時の処理
-                onPressed: () {
-                  // "pop"で前の画面に戻る
-                  Navigator.of(context).pop();
-                },
-                child: Text('キャンセル'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                  onChanged: (value) {
+                    setState(() {
+                      _editMemo = value;
+                      // _editCtl.text = value;
+                    });
+                  },
+                  enabled: true,
+                  minLines: 3, // 10行分かけるようにする
+                  maxLines: null,
+                  controller: _editCtl,
+                  decoration: const InputDecoration(hintText: "文字を入れてください"),
+                ),
+                actions: <Widget>[
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      primary: Colors.blue,
+                      onPrimary: Colors.white,
+                    ),
+                    child: const Text('編集'),
+                    // 削除ボタン
+                    onPressed: _editMemo.isEmpty
+                        ? null
+                        : () {
+                            setState(() {
+                              _editCtl.text = _editMemo;
+                              isMod = true;
+                              Navigator.pop(context);
+                            });
+                          },
+                  )
+                ]);
+          });
+        });
   }
 }
